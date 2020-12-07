@@ -4,11 +4,14 @@ type
     writerItem,
     writerList
 
-  WriterNode* = object
+  CirruWriterNode* = object
     line*: int
     column*: int
     case kind*: WriterNodeKind
     of writerItem:
       item*: string
     of writerList:
-      list*: seq[WriterNode]
+      list*: seq[CirruWriterNode]
+
+type CirruWriterError* = object of ValueError
+  discard
