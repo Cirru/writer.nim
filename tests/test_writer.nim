@@ -27,7 +27,6 @@ let caseNames = @[
   "html",
   "indent",
   "inline-let",
-  "inline-mode",
   "inline-simple",
   "line",
   "nested-2",
@@ -35,6 +34,11 @@ let caseNames = @[
   "quote",
   "spaces",
   "unfolding",
+]
+
+let inlineCaseNames = @[
+  "html-inline",
+  "inline-mode",
 ]
 
 test "can add":
@@ -52,6 +56,16 @@ test "can add":
 
     echo "checking: ",  name
     check xs.writeCirruCode.strip.escape == target.strip.escape
+    echo ""
+
+  for name in inlineCaseNames:
+    let content = readFile("tests/ast/" & name & ".edn")
+    let v = read(content)
+    let xs = v.toWriterList
+    let target = readFile("tests/cirru/" & name & ".cirru")
+
+    echo "checking inline: ",  name
+    check xs.writeCirruCode((useInline: true)).strip.escape == target.strip.escape
     echo ""
 
   # let ednValue = read("[\"a\" \"b\" \"c\"]")
