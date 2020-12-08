@@ -1,14 +1,36 @@
 
 type
-  WriterNodeKind* = enum
+  CirruWriterNodeKind* = enum
     writerItem,
     writerList
 
-  WriterNode* = object
+  CirruWriterNode* = object
     line*: int
     column*: int
-    case kind*: WriterNodeKind
+    case kind*: CirruWriterNodeKind
     of writerItem:
       item*: string
     of writerList:
-      list*: seq[WriterNode]
+      list*: seq[CirruWriterNode]
+
+type CirruWriterError* = object of ValueError
+  discard
+
+type WriterNodeKind* = enum
+  writerKindNil,
+  writerKindLeaf,
+  writerKindSimpleExpr,
+  writerKindBoxedExpr,
+  writerKindExpr,
+
+proc `$`*(xs: CirruWriterNode): string =
+  if xs.kind == writerItem:
+    result = xs.item
+  else:
+    for idx, item in xs.list:
+      if idx > 0:
+        result = result & " "
+      if item.kind == writerItem:
+        result = result & item.item
+      else:
+        result = result & "(" & $(item) & ")"
