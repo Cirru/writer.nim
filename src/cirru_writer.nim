@@ -5,6 +5,9 @@ import sequtils
 
 import cirru_writer/types
 import cirru_writer/transform
+import cirru_writer/from_json
+
+export toWriterList, `$`
 
 let allowedChars = "-~_@#$&%!?^*=+|\\/<>[]{}.,:;'"
 
@@ -51,12 +54,9 @@ proc generateLeaf(xs: CirruWriterNode): string =
 proc generateInlineExpr(xs: CirruWriterNode): string =
   result = $charOpen
 
-  var atHead = true
   if xs.kind == writerList:
-    for x in xs.list:
-      if atHead:
-        atHead = true
-      else:
+    for idx, x in xs.list:
+      if idx > 0:
         result = result & " "
       let childForm = if x.kind == writerItem:
         x.generateLeaf()
@@ -76,13 +76,6 @@ proc renderNewline(n: int): string =
   "\n" & renderSpaces(n)
 
 type WriterTreeOptions = tuple[useInline: bool]
-
-type WriterNodeKind = enum
-  writerKindNil,
-  writerKindLeaf,
-  writerKindSimpleExpr,
-  writerKindBoxedExpr,
-  writerKindExpr,
 
 proc getNodeKind(cursor: CirruWriterNode): WriterNodeKind =
   if cursor.kind == writerItem:
@@ -111,7 +104,7 @@ proc generateTree(xs: CirruWriterNode, insistHead: bool, options: WriterTreeOpti
     let child = if kind == writerKindLeaf:
       generateLeaf(cursor)
     else:
-      if idx == 0 or insistHead:
+      if idx == 0 and insistHead:
         generateInlineExpr(cursor)
       else:
         case kind
@@ -144,10 +137,13 @@ proc generateTree(xs: CirruWriterNode, insistHead: bool, options: WriterTreeOpti
       prevKind = kind
 
 proc generateStatements(xs: CirruWriterNode, options: WriterTreeOptions): string =
-  let xs1 = xs.transformComma().transformDollar()
-  if xs.kind == writerItem:
+  let xs1 = xs.transformComma()
+  echo "xs1: ", xs1
+  let xs2 = xs1.transformDollar()
+  echo "xs2: ", xs2
+  if xs2.kind == writerItem:
     raise newException(CirruWriterError, "Unexpected item")
-  xs.list.map(proc(x: CirruWriterNode): string =
+  xs2.list.map(proc(x: CirruWriterNode): string =
     "\n" & generateTree(x, true, options, 0)
   ).join("")
 
