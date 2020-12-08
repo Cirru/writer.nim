@@ -10,3 +10,7 @@ srcDir        = "src"
 # Dependencies
 
 requires "nim >= 1.4.0"
+requires "https://github.com/rosado/edn.nim"
+
+task t, "run test once":
+  exec "nim c --verbosity:0 --hints:off -r tests/test_writer.nim"

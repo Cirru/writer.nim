@@ -7,7 +7,7 @@ import cirru_writer/types
 import cirru_writer/transform
 import cirru_writer/from_json
 
-export toWriterList, `$`
+export toWriterList, `$`, CirruWriterNode, CirruWriterNodeKind
 
 let allowedChars = "-~_@#$&%!?^*=+|\\/<>[]{}.,:;'"
 
@@ -57,7 +57,7 @@ proc generateInlineExpr(xs: CirruWriterNode): string =
   if xs.kind == writerList:
     for idx, x in xs.list:
       if idx > 0:
-        result = result & " "
+        result = result & charSpace
       let childForm = if x.kind == writerItem:
         x.generateLeaf()
       else:
@@ -97,8 +97,6 @@ proc generateTree(xs: CirruWriterNode, insistHead: bool, options: WriterTreeOpti
     raise newException(CirruWriterError, "expects a list")
 
   for idx, cursor in xs.list:
-    if idx > 0:
-      result = result & " "
     let kind = getNodeKind(cursor)
 
     let child = if kind == writerKindLeaf:
@@ -126,6 +124,12 @@ proc generateTree(xs: CirruWriterNode, insistHead: bool, options: WriterTreeOpti
           else:
             raise newException(CirruWriterError, "Not handled yet")
 
+    if prevKind == writerKindLeaf:
+      if kind == writerKindLeaf or kind == writerKindSimpleExpr:
+        result = result & charSpace
+    elif prevKind == writerKindLeaf or prevKind == writerKindSimpleExpr:
+      if kind == writerKindLeaf:
+        result = result & charSpace
     result = result & child
 
     if options.useInline and kind == writerKindSimpleExpr:
@@ -138,13 +142,13 @@ proc generateTree(xs: CirruWriterNode, insistHead: bool, options: WriterTreeOpti
 
 proc generateStatements(xs: CirruWriterNode, options: WriterTreeOptions): string =
   let xs1 = xs.transformComma()
-  echo "xs1: ", xs1
+  # echo "xs1: ", xs1
   let xs2 = xs1.transformDollar()
-  echo "xs2: ", xs2
+  # echo "xs2: ", xs2
   if xs2.kind == writerItem:
     raise newException(CirruWriterError, "Unexpected item")
   xs2.list.map(proc(x: CirruWriterNode): string =
-    "\n" & generateTree(x, true, options, 0)
+    "\n" & generateTree(x, true, options, 0) & "\n"
   ).join("")
 
 proc writeCirruCode*(xs: CirruWriterNode, options: WriterTreeOptions = (useInline: false)): string =

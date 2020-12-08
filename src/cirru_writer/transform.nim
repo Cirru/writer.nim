@@ -29,22 +29,27 @@ proc transformComma*(xs: CirruWriterNode): CirruWriterNode =
   for idx, cursor in xs.list:
     let kind = if cursor.kind == writerItem or cursor.list.len == 0:
       writerKindLeaf
-    elif prevKind == writerKindLeaf or isSimpleExpr(cursor):
+    elif prevKind == writerKindLeaf and isSimpleExpr(cursor):
       writerKindSimpleExpr
     else:
       writerKindExpr
     if kind == writerKindLeaf and (prevKind == writerKindExpr or chunk.len > 0):
       chunk.add cursor
     else:
+      # echo "chunk inside: ", chunk
       if chunk.len > 0:
         result.list.add CirruWriterNode(kind: writerList, list: vecAdd(@[commaNode], chunk))
+        chunk = @[]
       if cursor.kind == writerItem:
         result.list.add cursor
       else:
         result.list.add transformComma(cursor)
     prevKind = kind
+
+  # echo "at end: ", chunk
+
   if chunk.len > 0:
-    result.list.add vecAdd(@[commaNode], chunk)
+    result.list.add CirruWriterNode(kind: writerList, list: vecAdd(@[commaNode], chunk))
 
 proc transformDollar*(xs: CirruWriterNode, atDollar: bool = false): CirruWriterNode =
   result = CirruWriterNode(kind: writerList, list: @[])
