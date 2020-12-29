@@ -1,11 +1,11 @@
 
-import re
 import strutils
 import sequtils
 
 import cirru_writer/types
 import cirru_writer/transform
 import cirru_writer/from_json
+import cirru_writer/str_util
 
 export toWriterList, `$`, CirruWriterNode, CirruWriterNodeKind
 
@@ -21,7 +21,7 @@ proc isBoxed(xs: CirruWriterNode): bool =
     return false
 
 proc isSimpleChar(x: char): bool =
-  ($x).match(re"^[a-zA-Z0-9]$")
+  x.isADigit() or x.isALetter()
 
 proc isCharAllowed(x: char): bool =
   if x.isSimpleChar():
