@@ -34,6 +34,8 @@ let caseNames = @[
   "quote",
   "spaces",
   "unfolding",
+  "append-indent",
+  "cond",
 ]
 
 let inlineCaseNames = @[
