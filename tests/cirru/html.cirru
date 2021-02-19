@@ -2,7 +2,8 @@
 doctype
 
 html
-  head (title $ = a)
+  head
+    title $ = a
     link (:rel a)
       :href b
     link (:rel icon)
@@ -17,7 +18,8 @@ html
         a (:href a)
           = b
       .line $ span (= a)
-    #list (.year $ = 2014)
+    #list
+      .year $ = 2014
       .month $ = May
       .post $ a.link (:href)
         =

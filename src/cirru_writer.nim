@@ -3,7 +3,6 @@ import strutils
 import sequtils
 
 import cirru_writer/types
-import cirru_writer/transform
 import cirru_writer/from_json
 import cirru_writer/str_util
 
@@ -49,7 +48,7 @@ proc generateLeaf(xs: CirruWriterNode): string =
     if allAllowed:
       return xs.item
     else:
-      return xs.item.escape
+      return escapeCirruStr(xs.item)
 
 proc generateInlineExpr(xs: CirruWriterNode): string =
   result = $charOpen
@@ -90,67 +89,94 @@ proc getNodeKind(cursor: CirruWriterNode): WriterNodeKind =
     else:
       writerKindExpr
 
-proc generateTree(xs: CirruWriterNode, insistHead: bool, options: WriterTreeOptions, level: int): string =
+proc generateTree(xs: CirruWriterNode, insistHead: bool, options: WriterTreeOptions, level: int, inTail: bool): string =
   var prevKind = writerKindNil
+  var bended = false
 
   if xs.kind == writerItem:
     raise newException(CirruWriterError, "expects a list")
 
   for idx, cursor in xs.list:
     let kind = getNodeKind(cursor)
+    let nextLevel = level + 1
+    let childInsistHead = prevKind == writerKindBoxedExpr or prevKind == writerKindExpr
+    let atTail = idx != 0 and
+      not inTail and
+      prevKind == writerKindLeaf and
+      idx == xs.list.len - 1 and
+      cursor.kind == writerList
 
-    let child = if kind == writerKindLeaf:
+    let child = if atTail:
+      if cursor.list.len == 0:
+        "$"
+      else:
+        "$ " & generateTree(cursor, false, options, if bended: nextLevel else: level, atTail)
+    elif kind == writerKindLeaf:
       generateLeaf(cursor)
-    else:
-      if idx == 0 and insistHead:
+    elif idx == 0 and insistHead:
+      generateInlineExpr(cursor)
+    elif kind == writerKindSimpleExpr:
+      if prevKind == writerKindLeaf:
         generateInlineExpr(cursor)
+      elif options.useInline and prevKind == writerKindSimpleExpr:
+        " " & generateInlineExpr(cursor)
       else:
-        case kind
-          of writerKindSimpleExpr:
-            if prevKind == writerKindLeaf:
-              generateInlineExpr(cursor)
-            elif options.useInline and prevKind == writerKindSimpleExpr:
-              charSpace & generateInlineExpr(cursor)
-            else:
-              renderNewline(level + 1) & generateTree(cursor, false, options, level + 1)
-          of writerKindExpr:
-            renderNewline(level + 1) & generateTree(cursor, false, options, level + 1)
-          of writerKindBoxedExpr:
-            let spaces = if prevKind == writerKindLeaf or prevKind == writerKindSimpleExpr or prevKind == writerKindNil:
-              ""
-            else:
-              renderNewline(level + 1)
-            spaces & generateTree(cursor, prevKind == writerKindBoxedExpr or prevKind == writerKindExpr, options, level + 1)
-          else:
-            raise newException(CirruWriterError, "Not handled yet")
-
-    if prevKind == writerKindLeaf:
-      if kind == writerKindLeaf or kind == writerKindSimpleExpr:
-        result = result & charSpace
-    elif prevKind == writerKindLeaf or prevKind == writerKindSimpleExpr:
-      if kind == writerKindLeaf:
-        result = result & charSpace
-    result = result & child
-
-    if options.useInline and kind == writerKindSimpleExpr:
-      if prevKind == writerKindLeaf or prevKind == writerKindSimpleExpr:
-        prevKind = writerKindSimpleExpr
+        renderNewline(nextLevel) & generateTree(cursor, childInsistHead, options, nextLevel, false)
+    elif kind == writerKindExpr:
+      renderNewline(nextLevel) & generateTree(cursor, childInsistHead, options, nextLevel, false)
+    elif kind == writerKindBoxedExpr:
+      let content = generateTree(cursor, childInsistHead, options, nextLevel, false)
+      if prevKind == writerKindNil or prevKind == writerKindLeaf or prevKind == writerKindSimpleExpr:
+        content
       else:
-        prevKind = writerKindExpr
+        renderNewline(nextLevel) & content
     else:
-      prevKind = kind
+      raise newException(ValueError, "Unpected condition")
+
+    let chunk = if atTail:
+      " " & child
+    elif prevKind == writerKindLeaf and kind == writerKindLeaf:
+      " " & child
+    elif prevKind == writerKindLeaf and kind == writerKindSimpleExpr:
+      " " & child
+    elif prevKind == writerKindSimpleExpr and kind == writerKindLeaf:
+      " " & child
+    elif kind == writerKindLeaf and (prevKind == writerKindBoxedExpr or prevKind == writerKindExpr):
+      renderNewline(nextLevel) & ", " & child
+    else:
+      child
+
+    result = result & chunk
+
+
+    # update writer states
+
+    prevKind = if kind == writerKindSimpleExpr:
+      if idx == 0 and insistHead:
+        writerKindSimpleExpr
+      elif options.useInline:
+        if prevKind == writerKindLeaf or prevKind == writerKindSimpleExpr:
+          writerKindSimpleExpr
+        else:
+          writerKindExpr
+      else:
+        if prevKind == writerKindLeaf:
+          writerKindSimpleExpr
+        else:
+          writerKindExpr
+    else:
+      kind
+
+    if not bended:
+      if kind == writerKindExpr or kind == writerKindBoxedExpr:
+        bended = true
 
 proc generateStatements(xs: CirruWriterNode, options: WriterTreeOptions): string =
-  let xs1 = xs.transformComma()
-  # echo "xs1: ", xs1
-  let xs2 = xs1.transformDollar()
-  # echo "xs2: ", xs2
-  if xs2.kind == writerItem:
+  if xs.kind == writerItem:
     raise newException(CirruWriterError, "Unexpected item")
-  xs2.list.map(proc(x: CirruWriterNode): string =
-    "\n" & generateTree(x, true, options, 0) & "\n"
+  xs.list.map(proc(x: CirruWriterNode): string =
+    "\n" & generateTree(x, true, options, 0, false) & "\n"
   ).join("")
 
 proc writeCirruCode*(xs: CirruWriterNode, options: WriterTreeOptions = (useInline: false)): string =
   generateStatements(xs, options)
-

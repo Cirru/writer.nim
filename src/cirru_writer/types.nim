@@ -34,3 +34,12 @@ proc `$`*(xs: CirruWriterNode): string =
         result = result & item.item
       else:
         result = result & "(" & $(item) & ")"
+
+proc isSimpleExpr*(xs: CirruWriterNode): bool =
+  if xs.kind == writerList:
+    result = true
+    for x in xs.list:
+      if x.kind != writerItem:
+        result = false
+  else:
+    result = false
