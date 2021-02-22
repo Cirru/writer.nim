@@ -123,7 +123,11 @@ proc generateTree(xs: CirruWriterNode, insistHead: bool, options: WriterTreeOpti
       else:
         renderNewline(nextLevel) & generateTree(cursor, childInsistHead, options, nextLevel, false)
     elif kind == writerKindExpr:
-      renderNewline(nextLevel) & generateTree(cursor, childInsistHead, options, nextLevel, false)
+      let content = generateTree(cursor, childInsistHead, options, nextLevel, false)
+      if content.startsWith("\n"):
+        content
+      else:
+        renderNewline(nextLevel) & content
     elif kind == writerKindBoxedExpr:
       let content = generateTree(cursor, childInsistHead, options, nextLevel, false)
       if prevKind == writerKindNil or prevKind == writerKindLeaf or prevKind == writerKindSimpleExpr:

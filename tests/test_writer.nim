@@ -36,6 +36,7 @@ let caseNames = @[
   "unfolding",
   "append-indent",
   "cond",
+  "cond-short",
 ]
 
 let inlineCaseNames = @[
@@ -43,11 +44,10 @@ let inlineCaseNames = @[
   "inline-mode",
 ]
 
-test "can add":
-  check 5 + 5 == 10
-  let data = toWriterList(%* [
-    ["a", "b", ["c", ["c1", "c5", ["c3", "c4"]]], "d"]
-  ])
+test "try writer":
+  # let data = toWriterList(%* [
+  #   ["a", "b", ["c", ["c1", "c5", ["c3", "c4"]]], "d"]
+  # ])
   # echo writeCirruCode(data)
 
   for name in caseNames:
