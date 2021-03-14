@@ -35,6 +35,7 @@ let caseNames = @[
   "spaces",
   "unfolding",
   "append-indent",
+  "comma-indent",
   "cond",
   "cond-short",
 ]

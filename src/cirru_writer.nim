@@ -89,9 +89,10 @@ proc getNodeKind(cursor: CirruWriterNode): WriterNodeKind =
     else:
       writerKindExpr
 
-proc generateTree(xs: CirruWriterNode, insistHead: bool, options: WriterTreeOptions, level: int, inTail: bool): string =
+proc generateTree(xs: CirruWriterNode, insistHead: bool, options: WriterTreeOptions, baseLevel: int, inTail: bool): string =
   var prevKind = writerKindNil
-  var bended = false
+  var bendedSize = 0
+  var level = baseLevel
 
   if xs.kind == writerItem:
     raise newException(CirruWriterError, "expects a list")
@@ -110,7 +111,7 @@ proc generateTree(xs: CirruWriterNode, insistHead: bool, options: WriterTreeOpti
       if cursor.list.len == 0:
         "$"
       else:
-        "$ " & generateTree(cursor, false, options, if bended: nextLevel else: level, atTail)
+        "$ " & generateTree(cursor, false, options, level, atTail)
     elif kind == writerKindLeaf:
       generateLeaf(cursor)
     elif idx == 0 and insistHead:
@@ -137,6 +138,8 @@ proc generateTree(xs: CirruWriterNode, insistHead: bool, options: WriterTreeOpti
     else:
       raise newException(ValueError, "Unpected condition")
 
+    let bended = kind == writerKindLeaf and (prevKind == writerKindBoxedExpr or prevKind == writerKindExpr)
+
     let chunk = if atTail:
       " " & child
     elif prevKind == writerKindLeaf and kind == writerKindLeaf:
@@ -145,7 +148,7 @@ proc generateTree(xs: CirruWriterNode, insistHead: bool, options: WriterTreeOpti
       " " & child
     elif prevKind == writerKindSimpleExpr and kind == writerKindLeaf:
       " " & child
-    elif kind == writerKindLeaf and (prevKind == writerKindBoxedExpr or prevKind == writerKindExpr):
+    elif bended:
       renderNewline(nextLevel) & ", " & child
     else:
       child
@@ -171,13 +174,13 @@ proc generateTree(xs: CirruWriterNode, insistHead: bool, options: WriterTreeOpti
     else:
       kind
 
-    if not bended:
-      if kind == writerKindExpr or kind == writerKindBoxedExpr:
-        bended = true
+    if bended:
+      bendedSize = bendedSize + 1
+      level = level + 1
 
 proc generateStatements(xs: CirruWriterNode, options: WriterTreeOptions): string =
   if xs.kind == writerItem:
-    raise newException(CirruWriterError, "Unexpected item")
+    raise newException(CirruWriterError, "Expected list at top level, but got: " & $xs)
   xs.list.map(proc(x: CirruWriterNode): string =
     "\n" & generateTree(x, true, options, 0, false) & "\n"
   ).join("")
